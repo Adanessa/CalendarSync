@@ -1,0 +1,825 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mötestid</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,400;0,500;1,400&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+
+<!-- ░░░ FIREBASE CONFIG — byt ut dessa värden mot dina egna ░░░ -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getDatabase, ref, set, get, onValue, child }
+    from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+  // ╔══════════════════════════════════════════════════════╗
+  // ║  KLISTRA IN DINA FIREBASE-INSTÄLLNINGAR HÄR NEDAN   ║
+  // ╚══════════════════════════════════════════════════════╝
+  const firebaseConfig = {
+    apiKey: "AIzaSyDL-Mq5D3K7mOyUxRLylmoi4JBgGY08LQs",
+    authDomain: "calendersync-8b834.firebaseapp.com",
+    databaseURL: "https://calendersync-8b834-default-rtdb.europe-west1.firebasedatabase.app",
+    projectId: "calendersync-8b834",
+    storageBucket: "calendersync-8b834.firebasestorage.app",
+    messagingSenderId: "75903815179",
+    appId: "1:75903815179:web:f2265eb17a41ea9570c10e",
+    measurementId: "G-PD1LFXRGKC"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db  = getDatabase(app);
+
+  // Expose helpers to window so the rest of the script can use them
+  window._fb = {
+    async setData(path, data) {
+      await set(ref(db, path), data);
+    },
+    async getData(path) {
+      const snap = await get(child(ref(db), path));
+      return snap.exists() ? snap.val() : null;
+    },
+    listen(path, cb) {
+      const unsub = onValue(ref(db, path), snap => {
+        cb(snap.exists() ? snap.val() : null);
+      });
+      return unsub; // call to stop listening
+    }
+  };
+  window._fbReady = true;
+  window.dispatchEvent(new Event('fbready'));
+</script>
+
+<style>
+:root {
+  --bg:      #0e0d0b;
+  --surface: #171512;
+  --card:    #1d1a16;
+  --border:  #2c2720;
+  --border2: #231f1a;
+  --ink:     #e8e1d5;
+  --muted:   #5a5045;
+  --dim:     #2e2820;
+  --accent:  #c8431c;
+  --green:   #1e6644;
+  --green-bg:#071e10;
+  --green-hi:#24a060;
+  --slot-w:  38px;
+  --time-w:  46px;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: 'DM Mono', monospace;
+  font-size: 14px;
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+button, input { font-family: inherit; }
+a { color: inherit; text-decoration: none; }
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+/* ── layout ── */
+.page { min-height: 100vh; padding: 32px 16px 80px; }
+.wrap { max-width: 520px; margin: 0 auto; }
+.wrap-wide { max-width: 900px; margin: 0 auto; }
+
+/* ── logo ── */
+.logo {
+  font-family: 'Instrument Serif', serif;
+  font-size: clamp(1.9rem, 6vw, 2.6rem);
+  color: var(--ink);
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+.logo em { font-style: italic; color: var(--accent); }
+.logo-sub { font-size: 0.65rem; color: var(--muted); letter-spacing: 0.1em; text-transform: uppercase; margin-top: 3px; }
+
+/* ── cards ── */
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 22px;
+  margin-bottom: 12px;
+}
+.card-title {
+  font-family: 'Instrument Serif', serif;
+  font-size: 1.15rem;
+  color: var(--ink);
+  margin-bottom: 6px;
+}
+
+/* ── buttons ── */
+.btn-primary {
+  display: block; width: 100%;
+  padding: 13px 18px;
+  background: var(--accent); color: #fff;
+  border: none; border-radius: 8px;
+  font-family: 'DM Mono', monospace; font-size: 0.8rem; letter-spacing: 0.04em;
+  cursor: pointer; transition: filter 0.15s;
+  margin-top: 14px;
+}
+.btn-primary:hover { filter: brightness(1.12); }
+.btn-primary:disabled { opacity: 0.5; cursor: default; }
+.btn-ghost {
+  padding: 7px 13px;
+  background: transparent; color: var(--muted);
+  border: 1px solid var(--border); border-radius: 6px;
+  font-family: 'DM Mono', monospace; font-size: 0.72rem;
+  cursor: pointer; transition: color 0.15s, border-color 0.15s;
+}
+.btn-ghost:hover { color: var(--ink); border-color: var(--muted); }
+.btn-icon {
+  background: transparent; border: none; color: var(--muted);
+  font-size: 1.4rem; cursor: pointer; padding: 0 8px; line-height: 1;
+  transition: color 0.15s;
+}
+.btn-icon:hover { color: var(--ink); }
+
+/* ── inputs ── */
+.text-input {
+  width: 100%; padding: 9px 12px;
+  background: var(--bg); border: 1px solid var(--border); border-radius: 7px;
+  color: var(--ink); font-family: 'DM Mono', monospace; font-size: 0.8rem;
+  outline: none; transition: border-color 0.15s;
+}
+.text-input:focus { border-color: var(--muted); }
+
+/* ── color dot ── */
+.dot { border-radius: 50%; flex-shrink: 0; }
+
+/* ── section ── */
+.section {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 18px 20px;
+  margin-bottom: 12px;
+}
+.section-title {
+  font-family: 'Instrument Serif', serif;
+  font-size: 0.98rem; color: var(--ink);
+  margin-bottom: 12px;
+  display: flex; align-items: center; gap: 8px;
+}
+
+/* ── week grid ── */
+.week-nav {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 14px;
+}
+.week-label {
+  font-family: 'Instrument Serif', serif;
+  font-size: 1rem; color: var(--ink);
+}
+.grid-outer {
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+}
+.grid-table {
+  border-collapse: collapse;
+  min-width: 100%;
+}
+.grid-table th {
+  background: var(--card);
+  font-size: 0.62rem; font-weight: 500; letter-spacing: 0.06em;
+  color: var(--muted); text-transform: uppercase;
+  padding: 8px 0; text-align: center;
+  border-bottom: 1px solid var(--border);
+  position: sticky; top: 0; z-index: 2;
+  min-width: var(--slot-w);
+}
+.grid-table th.time-col { min-width: var(--time-w); background: var(--card); }
+.grid-table td.time-cell {
+  font-size: 0.6rem; color: var(--muted);
+  padding: 0 8px; white-space: nowrap;
+  border-right: 1px solid var(--border2);
+  background: var(--card);
+  text-align: right;
+}
+.grid-table tr { border-bottom: 1px solid var(--border2); }
+.grid-table tr:last-child { border-bottom: none; }
+.slot-cell {
+  width: var(--slot-w); height: 28px;
+  cursor: pointer;
+  border-right: 1px solid var(--border2);
+  background: transparent;
+  transition: background 0.06s;
+  position: relative;
+  user-select: none;
+}
+.slot-cell:last-child { border-right: none; }
+.slot-cell:hover { background: var(--dim); }
+.slot-cell.selected {
+  background: var(--accent) !important;
+}
+.slot-cell.overlap {
+  background: var(--green) !important;
+}
+.slot-cell.overlap-partial {
+  background: #193d28 !important;
+}
+.slot-cell.past { opacity: 0.25; cursor: default; }
+.slot-cell.today-col { border-left: 1px solid #2e2416; border-right: 1px solid #2e2416; }
+
+/* ── link row ── */
+.link-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 0; border-bottom: 1px solid var(--border2);
+}
+.link-row:last-child { border-bottom: none; }
+.status-badge {
+  font-size: 0.62rem; padding: 3px 8px; border-radius: 20px;
+  white-space: nowrap; flex-shrink: 0;
+}
+.status-badge.waiting { background: #111; color: var(--muted); border: 1px solid var(--border); }
+.status-badge.done    { background: var(--green-bg); color: var(--green-hi); border: 1px solid var(--green); }
+.copy-btn {
+  padding: 5px 10px; border: 1px solid var(--border); border-radius: 6px;
+  color: var(--muted); font-family: 'DM Mono', monospace; font-size: 0.67rem;
+  cursor: pointer; white-space: nowrap; flex-shrink: 0; background: var(--surface);
+  transition: background 0.2s, color 0.2s;
+}
+.copy-btn.copied { background: var(--green); color: #fff; border-color: var(--green); }
+
+/* ── overlap chips ── */
+.chip-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  gap: 8px;
+}
+.overlap-chip {
+  background: var(--green-bg);
+  border: 1px solid var(--green);
+  border-radius: 8px; padding: 10px 13px;
+}
+.overlap-chip .day  { font-family: 'Instrument Serif', serif; font-size: 0.95rem; color: var(--green-hi); font-weight: 700; }
+.overlap-chip .time { font-size: 0.67rem; color: #3a7a52; margin-top: 2px; }
+
+/* ── misc ── */
+.pitch { font-size: 0.82rem; color: #776a5c; line-height: 1.7; }
+.empty { font-size: 0.78rem; color: var(--muted); font-style: italic; }
+.tag-row { display: flex; flex-wrap: wrap; gap: 4px; }
+.tag {
+  font-size: 0.63rem; padding: 2px 7px; border-radius: 4px; font-family: monospace;
+}
+.pulse { animation: pulse 2s infinite; }
+@keyframes pulse { 0%,100%{opacity:1}50%{opacity:0.4} }
+.fade-in { animation: fadeIn 0.3s ease; }
+@keyframes fadeIn { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:none} }
+
+/* ── loading ── */
+.loader {
+  display: flex; align-items: center; justify-content: center;
+  height: 100vh; color: var(--muted); font-size: 0.75rem; letter-spacing: 0.08em;
+}
+
+/* mobile tweaks */
+@media (max-width: 480px) {
+  :root { --slot-w: 32px; --time-w: 38px; }
+  .page { padding: 20px 12px 80px; }
+}
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<!-- React + Babel -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+
+<script type="text/babel">
+const { useState, useEffect, useRef, useCallback } = React;
+
+// ── constants ────────────────────────────────────────────────────────────────
+const HOURS   = Array.from({length:11},(_,i)=>i+8); // 08–18
+const COLORS  = ["#c8431c","#1e6644","#6b3fa0","#1a5c8c","#9a7010","#8a2050"];
+const DAYS_SV = ['Mån','Tis','Ons','Tor','Fre','Lör','Sön'];
+const MONTHS_SV = ['januari','februari','mars','april','maj','juni','juli','augusti','september','oktober','november','december'];
+const MONTHS_FULL = ['Januari','Februari','Mars','April','Maj','Juni','Juli','Augusti','September','Oktober','November','December'];
+
+// ── helpers ──────────────────────────────────────────────────────────────────
+const genId  = () => Math.random().toString(36).slice(2,9);
+const slotKey = (dateStr, hour) => `${dateStr}__${hour}`;
+const parseSlot = key => { const [d,h]=key.split('__'); return {date:d,hour:parseInt(h)}; };
+
+function getWeekDates(weekStart) {
+  return Array.from({length:7},(_,i)=>{
+    const d = new Date(weekStart);
+    d.setDate(d.getDate()+i);
+    return d;
+  });
+}
+function getMondayOfWeek(date) {
+  const d = new Date(date);
+  const day = d.getDay();
+  const diff = (day===0?-6:1-day);
+  d.setDate(d.getDate()+diff);
+  d.setHours(0,0,0,0);
+  return d;
+}
+function dateStr(d) {
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+function todayStr() { return dateStr(new Date()); }
+function isPast(dateS, hour) {
+  const now = new Date();
+  const d   = new Date(dateS);
+  if (d.toDateString() === now.toDateString()) return hour < now.getHours();
+  return d < new Date(todayStr());
+}
+function formatWeekLabel(monday) {
+  const sunday = new Date(monday); sunday.setDate(sunday.getDate()+6);
+  if (monday.getMonth()===sunday.getMonth())
+    return `${monday.getDate()}–${sunday.getDate()} ${MONTHS_SV[monday.getMonth()]} ${monday.getFullYear()}`;
+  return `${monday.getDate()} ${MONTHS_SV[monday.getMonth()]} – ${sunday.getDate()} ${MONTHS_SV[sunday.getMonth()]} ${monday.getFullYear()}`;
+}
+function groupSlots(slots) {
+  // returns array of {date, ranges:[{start,end}]}
+  const byDate = {};
+  slots.sort().forEach(k=>{
+    const {date,hour}=parseSlot(k);
+    if(!byDate[date]) byDate[date]=[];
+    byDate[date].push(hour);
+  });
+  return Object.entries(byDate).sort(([a],[b])=>a.localeCompare(b)).map(([date,hours])=>{
+    hours.sort((a,b)=>a-b);
+    const ranges=[];
+    let s=hours[0],e=hours[0];
+    for(let i=1;i<hours.length;i++){
+      if(hours[i]===e+1) e=hours[i];
+      else { ranges.push({start:s,end:e}); s=e=hours[i]; }
+    }
+    ranges.push({start:s,end:e});
+    return {date,ranges};
+  });
+}
+function formatDayFull(dateS) {
+  const d=new Date(dateS+'T12:00:00');
+  return d.toLocaleDateString('sv-SE',{weekday:'long',day:'numeric',month:'long'});
+}
+
+// ── FB wait helper ────────────────────────────────────────────────────────────
+function waitFb() {
+  return new Promise(res=>{
+    if(window._fbReady) return res();
+    window.addEventListener('fbready',res,{once:true});
+  });
+}
+
+// ── ROOT ─────────────────────────────────────────────────────────────────────
+function App() {
+  const [route,setRoute] = useState(()=>window.location.hash.slice(1));
+  useEffect(()=>{
+    const h=()=>setRoute(window.location.hash.slice(1));
+    window.addEventListener('hashchange',h);
+    return()=>window.removeEventListener('hashchange',h);
+  },[]);
+  const nav = p => { window.location.hash=p; };
+  const p = route.split('/');
+  if(p[0]==='session'&&p[2]==='person'&&p[3]) return <PersonView sid={p[1]} pid={p[3]} nav={nav}/>;
+  if(p[0]==='session'&&p[2]==='results')      return <ResultsView sid={p[1]} nav={nav}/>;
+  return <HomeView nav={nav}/>;
+}
+
+// ── HOME ─────────────────────────────────────────────────────────────────────
+function HomeView({nav}) {
+  const [step,setStep]   = useState('start');
+  const [names,setNames] = useState(['','','']);
+  const [title,setTitle] = useState('');
+  const [busy,setBusy]   = useState(false);
+  const [err,setErr]     = useState('');
+
+  const addPerson = ()=>names.length<6&&setNames([...names,'']);
+  const delPerson = i=>names.length>2&&setNames(names.filter((_,j)=>j!==i));
+  const setName   = (i,v)=>{const n=[...names];n[i]=v;setNames(n);};
+
+  async function create(){
+    const filled=names.map(n=>n.trim()).filter(Boolean);
+    if(filled.length<2){setErr('Minst 2 personer krävs.');return;}
+    setBusy(true);
+    await waitFb();
+    const sid=genId();
+    const persons=filled.map((name,i)=>({id:genId(),name,color:COLORS[i]||'#888'}));
+    const meta={sid,persons,title:title.trim()||'Möte',created:Date.now()};
+    try{
+      await window._fb.setData(`sessions/${sid}/meta`,meta);
+      nav(`session/${sid}/results`);
+    }catch(e){setErr('Firebase-fel: '+e.message);setBusy(false);}
+  }
+
+  return(
+    <div className="page">
+      <div className="wrap fade-in">
+        <div style={{marginBottom:28}}>
+          <div className="logo">Mötes<em>tid</em></div>
+          <div className="logo-sub">hitta när alla kan</div>
+        </div>
+
+        {step==='start'&&(
+          <div className="card">
+            <div className="card-title">Vad är det här?</div>
+            <p className="pitch" style={{marginBottom:14}}>
+              Du skapar en session och väljer vilka som ska hitta en gemensam tid.
+              Varje person får en unik länk — de öppnar den, klickar i sina lediga timmar i ett veckoschema,
+              och du ser direkt när alla kan.
+            </p>
+            <p className="pitch" style={{color:'#4a4038',fontSize:'0.74rem'}}>
+              Perfekt för möten med Arbetsförmedlingen, Försäkringskassan, sjukvård — eller alla som aldrig kan hitta en tid.
+            </p>
+            <button className="btn-primary" onClick={()=>setStep('setup')}>Skapa ny session →</button>
+          </div>
+        )}
+
+        {step==='setup'&&(
+          <div className="card">
+            <div className="card-title">Ny session</div>
+            <p style={{fontSize:'0.74rem',color:'#5a4f44',marginBottom:16}}>Varje person får en egen länk att öppna på sin enhet.</p>
+
+            <label style={{fontSize:'0.68rem',color:C.muted,letterSpacing:'0.06em',textTransform:'uppercase',display:'block',marginBottom:5}}>Mötets namn (valfritt)</label>
+            <input className="text-input" placeholder="t.ex. Avstämningsmöte mars" value={title} onChange={e=>setTitle(e.target.value)} style={{marginBottom:16}}/>
+
+            <label style={{fontSize:'0.68rem',color:C.muted,letterSpacing:'0.06em',textTransform:'uppercase',display:'block',marginBottom:8}}>Deltagare</label>
+            {names.map((name,i)=>(
+              <div key={i} style={{display:'flex',alignItems:'center',gap:9,marginBottom:8}}>
+                <div className="dot" style={{width:20,height:20,background:COLORS[i]||'#888',flexShrink:0}}/>
+                <input className="text-input" placeholder={`Person ${i+1}`} value={name}
+                  onChange={e=>setName(i,e.target.value)}
+                  onKeyDown={e=>e.key==='Enter'&&i===names.length-1&&addPerson()}/>
+                {names.length>2&&<button style={{background:'transparent',border:'none',color:C.muted,fontSize:'1.1rem',cursor:'pointer'}} onClick={()=>delPerson(i)}>×</button>}
+              </div>
+            ))}
+            {names.length<6&&(
+              <button style={{background:'transparent',border:'1px dashed var(--border)',color:C.muted,borderRadius:6,padding:'7px 13px',fontFamily:'DM Mono, monospace',fontSize:'0.72rem',cursor:'pointer',width:'100%',marginBottom:4}}
+                onClick={addPerson}>+ Lägg till person</button>
+            )}
+            {err&&<p style={{color:'#c04020',fontSize:'0.74rem',marginTop:8}}>{err}</p>}
+            <div style={{display:'flex',gap:10,marginTop:16}}>
+              <button className="btn-ghost" onClick={()=>setStep('start')}>← Tillbaka</button>
+              <button className="btn-primary" style={{flex:1,marginTop:0}} onClick={create} disabled={busy}>
+                {busy?'Skapar…':'Skapa & hämta länkar →'}
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── RESULTS ──────────────────────────────────────────────────────────────────
+function ResultsView({sid,nav}) {
+  const [meta,setMeta]   = useState(null);
+  const [avail,setAvail] = useState({});
+  const [loading,setLoading] = useState(true);
+  const [copied,setCopied]   = useState(null);
+
+  useEffect(()=>{
+    let unsubs=[];
+    (async()=>{
+      await waitFb();
+      // listen to meta
+      const u1=window._fb.listen(`sessions/${sid}/meta`,m=>{
+        if(m) setMeta(m); else setLoading(false);
+      });
+      unsubs.push(u1);
+      // listen to all avail
+      const u2=window._fb.listen(`sessions/${sid}/avail`,data=>{
+        setAvail(data||{});
+        setLoading(false);
+      });
+      unsubs.push(u2);
+    })();
+    return()=>unsubs.forEach(u=>u&&u());
+  },[sid]);
+
+  function copyLink(pid){
+    const url=`${location.origin}${location.pathname}#session/${sid}/person/${pid}`;
+    navigator.clipboard.writeText(url).then(()=>{setCopied(pid);setTimeout(()=>setCopied(null),2500);});
+  }
+
+  if(loading) return <div className="loader">Laddar…</div>;
+  if(!meta)   return <div className="loader">Session hittades inte.</div>;
+
+  // build slot sets per person
+  const personSlots={};
+  meta.persons.forEach(p=>{
+    const raw=avail[p.id]||{};
+    personSlots[p.id]=new Set(Object.keys(raw).filter(k=>raw[k]===true));
+  });
+
+  const submitted=meta.persons.filter(p=>personSlots[p.id].size>0);
+
+  // overlap: slots where ALL persons are available
+  let overlapSlots=new Set();
+  if(submitted.length>0){
+    const sets=meta.persons.map(p=>personSlots[p.id]);
+    const first=sets[0];
+    overlapSlots=new Set([...first].filter(s=>sets.every(st=>st.has(s))));
+  }
+
+  // partial overlap (at least 2 but not all)
+  const partialSlots = submitted.length >= 2
+    ? new Set([...Object.values(personSlots).reduce((acc,s)=>{
+        s.forEach(k=>acc.set(k,(acc.get(k)||0)+1)); return acc;
+      },new Map())].filter(([,c])=>c>=2&&c<meta.persons.length).map(([k])=>k))
+    : new Set();
+
+  const overlapGrouped = groupSlots([...overlapSlots]);
+
+  return(
+    <div className="page">
+      <div className="wrap-wide fade-in">
+        <div style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between',marginBottom:24,flexWrap:'wrap',gap:10}}>
+          <div>
+            <div className="logo">Mötes<em>tid</em></div>
+            <div className="logo-sub">{meta.title}</div>
+          </div>
+          <button className="btn-ghost" onClick={()=>nav('')}>← Ny session</button>
+        </div>
+
+        {/* Links */}
+        <div className="section">
+          <div className="section-title">
+            <span style={{width:7,height:7,borderRadius:'50%',background:'var(--accent)',display:'inline-block'}}/>
+            Dela dessa länkar
+          </div>
+          <p style={{fontSize:'0.72rem',color:C.muted,marginBottom:14}}>
+            Varje person öppnar sin länk och markerar lediga timmar. Resultaten uppdateras live.
+          </p>
+          {meta.persons.map(p=>{
+            const done=personSlots[p.id].size>0;
+            return(
+              <div key={p.id} className="link-row">
+                <div className="dot" style={{width:20,height:20,background:p.color}}/>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{fontSize:'0.82rem',fontWeight:500,color:'var(--ink)'}}>{p.name}</div>
+                  <div style={{fontSize:'0.62rem',color:C.muted,marginTop:1,fontFamily:'monospace',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
+                    …/person/{p.id}
+                  </div>
+                </div>
+                <span className={`status-badge ${done?'done':'waiting'}`}>
+                  {done?`✓ ${personSlots[p.id].size} timmar`:'väntar…'}
+                </span>
+                <button className={`copy-btn ${copied===p.id?'copied':''}`} onClick={()=>copyLink(p.id)}>
+                  {copied===p.id?'✓ Kopierad!':'Kopiera länk'}
+                </button>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Overlap results */}
+        <div className="section">
+          <div className="section-title">
+            <span style={{width:7,height:7,borderRadius:'50%',background:'var(--green-hi)',display:'inline-block'}} className={overlapSlots.size>0?'pulse':''}/>
+            Gemensamma lediga tider
+            <span style={{fontSize:'0.66rem',fontWeight:400,color:C.muted,marginLeft:4}}>
+              {submitted.length}/{meta.persons.length} har svarat
+            </span>
+          </div>
+
+          {submitted.length===0&&<p className="empty">Väntar på att folk ska markera sina tider…</p>}
+          {submitted.length>0&&overlapSlots.size===0&&(
+            <p className="empty" style={{color:'#7a3020'}}>
+              Inga gemensamma tider ännu.{submitted.length<meta.persons.length?` Väntar på ${meta.persons.length-submitted.length} person(er) till.`:' Alla har svarat — försök justera era tillgängligheter.'}
+            </p>
+          )}
+          {overlapGrouped.length>0&&(
+            <div className="chip-grid">
+              {overlapGrouped.map(({date,ranges})=>
+                ranges.map(({start,end},ri)=>(
+                  <div key={date+ri} className="overlap-chip">
+                    <div className="day">{formatDayFull(date)}</div>
+                    <div className="time">{String(start).padStart(2,'0')}:00 – {String(end+1).padStart(2,'0')}:00</div>
+                    <div style={{fontSize:'0.62rem',color:'#2d5a3d',marginTop:3}}>Alla {meta.persons.length} kan</div>
+                  </div>
+                ))
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Per-person breakdown */}
+        {submitted.length>0&&(
+          <div className="section">
+            <div className="section-title">Individuell tillgänglighet</div>
+            {meta.persons.map(p=>{
+              const slots=[...personSlots[p.id]].sort();
+              const grouped=groupSlots(slots);
+              return(
+                <div key={p.id} style={{marginBottom:16}}>
+                  <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:7}}>
+                    <div className="dot" style={{width:18,height:18,background:p.color}}/>
+                    <span style={{fontSize:'0.8rem',color:'var(--ink)',fontWeight:500}}>{p.name}</span>
+                    <span style={{fontSize:'0.67rem',color:C.muted}}>{slots.length>0?`${slots.length} timmar`:' Ej svarat'}</span>
+                  </div>
+                  <div className="tag-row">
+                    {grouped.slice(0,10).map(({date,ranges})=>
+                      ranges.map(({start,end},ri)=>{
+                        const k=slotKey(date,start);
+                        const isMatch=overlapSlots.has(k);
+                        return(
+                          <span key={date+ri} className="tag" style={{
+                            background:isMatch?'var(--green-bg)':'var(--surface)',
+                            color:isMatch?'var(--green-hi)':C.muted,
+                            border:`1px solid ${isMatch?'var(--green)':'var(--border2)'}`
+                          }}>
+                            {date.slice(5)} {String(start).padStart(2,'0')}–{String(end+1).padStart(2,'0')}
+                          </span>
+                        );
+                      })
+                    )}
+                    {grouped.length>10&&<span style={{fontSize:'0.63rem',color:C.muted}}>+mer</span>}
+                    {slots.length===0&&<span className="empty">Ej svarat</span>}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── PERSON VIEW ───────────────────────────────────────────────────────────────
+function PersonView({sid,pid,nav}) {
+  const [meta,setMeta]   = useState(null);
+  const [person,setPerson] = useState(null);
+  const [sel,setSel]     = useState(new Set()); // slot keys
+  const [saving,setSaving] = useState(false);
+  const [saved,setSaved]   = useState(false);
+  const [loading,setLoading] = useState(true);
+  const [weekStart,setWeekStart] = useState(()=>getMondayOfWeek(new Date()));
+  const [drag,setDrag]     = useState(false);
+  const [dragMode,setDragMode] = useState(null); // 'add'|'del'
+  const tableRef = useRef(null);
+
+  useEffect(()=>{
+    (async()=>{
+      await waitFb();
+      const m=await window._fb.getData(`sessions/${sid}/meta`);
+      if(!m){setLoading(false);return;}
+      setMeta(m);
+      const p=m.persons.find(x=>x.id===pid);
+      setPerson(p);
+      // load existing
+      const existing=await window._fb.getData(`sessions/${sid}/avail/${pid}`);
+      if(existing) setSel(new Set(Object.keys(existing).filter(k=>existing[k]===true)));
+      setLoading(false);
+    })();
+  },[sid,pid]);
+
+  useEffect(()=>{
+    const up=()=>setDrag(false);
+    window.addEventListener('mouseup',up);
+    window.addEventListener('touchend',up);
+    return()=>{window.removeEventListener('mouseup',up);window.removeEventListener('touchend',up);};
+  },[]);
+
+  async function save(){
+    setSaving(true);
+    await waitFb();
+    // convert set to object {key:true}
+    const obj={};
+    sel.forEach(k=>{obj[k]=true;});
+    try{
+      await window._fb.setData(`sessions/${sid}/avail/${pid}`,obj);
+      setSaved(true);setTimeout(()=>setSaved(false),3000);
+    }catch(e){alert('Firebase-fel: '+e.message);}
+    setSaving(false);
+  }
+
+  function onSlotDown(key,e){
+    e.preventDefault();
+    const adding=!sel.has(key);
+    setDrag(true);setDragMode(adding?'add':'del');
+    setSel(prev=>{const n=new Set(prev);adding?n.add(key):n.delete(key);return n;});
+  }
+  function onSlotEnter(key){
+    if(!drag)return;
+    setSel(prev=>{const n=new Set(prev);dragMode==='add'?n.add(key):n.delete(key);return n;});
+  }
+
+  // touch move over grid
+  function onTouchMove(e){
+    e.preventDefault();
+    const touch=e.touches[0];
+    const el=document.elementFromPoint(touch.clientX,touch.clientY);
+    const key=el?.dataset?.slotkey;
+    if(key) onSlotEnter(key);
+  }
+
+  const prevWeek=()=>{const d=new Date(weekStart);d.setDate(d.getDate()-7);setWeekStart(d);};
+  const nextWeek=()=>{const d=new Date(weekStart);d.setDate(d.getDate()+7);setWeekStart(d);};
+
+  if(loading) return <div className="loader">Laddar…</div>;
+  if(!meta||!person) return <div className="loader">Länken stämmer inte.</div>;
+
+  const weekDates=getWeekDates(weekStart);
+  const today=todayStr();
+
+  const saveColor = saved?'var(--green)':person.color;
+
+  return(
+    <div className="page">
+      <div className="wrap-wide fade-in">
+
+        {/* Header */}
+        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:20,flexWrap:'wrap',gap:10}}>
+          <div style={{borderLeft:`3px solid ${person.color}`,paddingLeft:14}}>
+            <div style={{fontFamily:"'Instrument Serif',serif",fontSize:'1.5rem',color:'var(--ink)'}}>{person.name}</div>
+            <div style={{fontSize:'0.68rem',color:C.muted,marginTop:2}}>{meta.title} · Klicka eller dra för att markera lediga timmar</div>
+          </div>
+          <div style={{display:'flex',alignItems:'center',gap:10}}>
+            <span style={{fontSize:'0.75rem',color:person.color,fontWeight:500}}>{sel.size} timmar</span>
+            {sel.size>0&&<button className="btn-ghost" style={{fontSize:'0.67rem',padding:'4px 9px'}} onClick={()=>setSel(new Set())}>Rensa allt</button>}
+          </div>
+        </div>
+
+        {/* Week nav */}
+        <div className="week-nav">
+          <button className="btn-icon" onClick={prevWeek}>‹</button>
+          <span className="week-label">{formatWeekLabel(weekStart)}</span>
+          <button className="btn-icon" onClick={nextWeek}>›</button>
+        </div>
+
+        {/* Time grid */}
+        <div className="grid-outer" ref={tableRef} onTouchMove={onTouchMove} style={{touchAction:'none'}}>
+          <table className="grid-table">
+            <thead>
+              <tr>
+                <th className="time-col"></th>
+                {weekDates.map((d,i)=>{
+                  const ds=dateStr(d);
+                  const isToday=ds===today;
+                  return(
+                    <th key={i} style={{color:isToday?'var(--accent)':undefined}}>
+                      {DAYS_SV[i]}<br/>
+                      <span style={{fontSize:'0.7rem',fontWeight:400,opacity:0.8}}>{d.getDate()}/{d.getMonth()+1}</span>
+                    </th>
+                  );
+                })}
+              </tr>
+            </thead>
+            <tbody>
+              {HOURS.map(hour=>(
+                <tr key={hour}>
+                  <td className="time-cell">{String(hour).padStart(2,'0')}:00</td>
+                  {weekDates.map((d,di)=>{
+                    const ds=dateStr(d);
+                    const key=slotKey(ds,hour);
+                    const isSel=sel.has(key);
+                    const past=isPast(ds,hour);
+                    const isToday=ds===today;
+                    return(
+                      <td key={di}
+                        className={`slot-cell${isSel?' selected':''}${past?' past':''}${isToday?' today-col':''}`}
+                        data-slotkey={past?undefined:key}
+                        onMouseDown={past?undefined:e=>onSlotDown(key,e)}
+                        onMouseEnter={past?undefined:()=>onSlotEnter(key)}
+                        onTouchStart={past?undefined:e=>{e.preventDefault();onSlotDown(key,e);}}
+                        style={isSel?{background:person.color}:undefined}
+                      />
+                    );
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        <div style={{display:'flex',alignItems:'center',gap:10,marginTop:12}}>
+          <button
+            className="btn-primary"
+            style={{background:saveColor,flex:1,marginTop:0,transition:'background 0.3s'}}
+            onClick={save} disabled={saving}>
+            {saving?'Sparar…':saved?'✓ Sparat!`':`Spara mina ${sel.size} timmar`}
+          </button>
+          <a href={`#session/${sid}/results`} className="btn-ghost" style={{whiteSpace:'nowrap'}}>Se resultat →</a>
+        </div>
+
+        <p style={{fontSize:'0.67rem',color:'#3a3028',textAlign:'center',marginTop:10,lineHeight:1.7}}>
+          Navigera till nästa vecka för att markera fler tider. Du kan spara och komma tillbaka för att ändra.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// shared style values
+const C = { muted: '#5a5045' };
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>
