@@ -569,6 +569,9 @@ function ResultsView({sid,nav}) {
                 <span className={`status-badge ${done?'done':'waiting'}`}>
                   {done?`✓ ${personSlots[p.id].size} timmar`:'väntar…'}
                 </span>
+                <a href={`#session/${sid}/person/${p.id}`} className="btn-ghost" style={{fontSize:'0.67rem',padding:'5px 10px',whiteSpace:'nowrap'}}>
+                  Öppna →
+                </a>
                 <button className={`copy-btn ${copied===p.id?'copied':''}`} onClick={()=>copyLink(p.id)}>
                   {copied===p.id?'✓ Kopierad!':'Kopiera länk'}
                 </button>
@@ -611,36 +614,54 @@ function ResultsView({sid,nav}) {
         {/* Per-person breakdown */}
         {submitted.length>0&&(
           <div className="section">
-            <div className="section-title">Individuell tillgänglighet</div>
+            <div className="section-title">Vem kan när?</div>
+            <p style={{fontSize:'0.72rem',color:C.muted,marginBottom:16}}>
+              Grönt = alla kan samtidigt. Grå = bara den personen är ledig då.
+            </p>
             {meta.persons.map(p=>{
               const slots=[...personSlots[p.id]].sort();
               const grouped=groupSlots(slots);
+              const hasSlots=slots.length>0;
               return(
-                <div key={p.id} style={{marginBottom:16}}>
-                  <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:7}}>
-                    <div className="dot" style={{width:18,height:18,background:p.color}}/>
-                    <span style={{fontSize:'0.8rem',color:'var(--ink)',fontWeight:500}}>{p.name}</span>
-                    <span style={{fontSize:'0.67rem',color:C.muted}}>{slots.length>0?`${slots.length} timmar`:' Ej svarat'}</span>
+                <div key={p.id} style={{marginBottom:20,paddingBottom:20,borderBottom:'1px solid var(--border2)'}}>
+                  <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:10}}>
+                    <div style={{display:'flex',alignItems:'center',gap:8}}>
+                      <div className="dot" style={{width:20,height:20,background:p.color}}/>
+                      <span style={{fontSize:'0.85rem',color:'var(--ink)',fontWeight:500}}>{p.name}</span>
+                    </div>
+                    <div style={{display:'flex',alignItems:'center',gap:8}}>
+                      {hasSlots&&<span style={{fontSize:'0.68rem',color:C.muted}}>{slots.length} timmar markerade</span>}
+                      <a href={`#session/${sid}/person/${p.id}`} className="btn-ghost" style={{fontSize:'0.67rem',padding:'4px 10px'}}>
+                        Ändra →
+                      </a>
+                    </div>
                   </div>
-                  <div className="tag-row">
-                    {grouped.slice(0,10).map(({date,ranges})=>
-                      ranges.map(({start,end},ri)=>{
-                        const k=slotKey(date,start);
-                        const isMatch=overlapSlots.has(k);
-                        return(
-                          <span key={date+ri} className="tag" style={{
-                            background:isMatch?'var(--green-bg)':'var(--surface)',
-                            color:isMatch?'var(--green-hi)':C.muted,
-                            border:`1px solid ${isMatch?'var(--green)':'var(--border2)'}`
-                          }}>
-                            {date.slice(5)} {String(start).padStart(2,'0')}–{String(end+1).padStart(2,'0')}
-                          </span>
-                        );
-                      })
-                    )}
-                    {grouped.length>10&&<span style={{fontSize:'0.63rem',color:C.muted}}>+mer</span>}
-                    {slots.length===0&&<span className="empty">Ej svarat</span>}
-                  </div>
+                  {!hasSlots&&(
+                    <div style={{fontSize:'0.76rem',color:C.muted,fontStyle:'italic',padding:'8px 0'}}>
+                      Har inte svarat än
+                    </div>
+                  )}
+                  {hasSlots&&(
+                    <div className="tag-row">
+                      {grouped.slice(0,12).map(({date,ranges})=>
+                        ranges.map(({start,end},ri)=>{
+                          const k=slotKey(date,start);
+                          const isMatch=overlapSlots.has(k);
+                          return(
+                            <span key={date+ri} className="tag" style={{
+                              background:isMatch?'var(--green-bg)':'var(--surface)',
+                              color:isMatch?'var(--green-hi)':C.muted,
+                              border:`1px solid ${isMatch?'var(--green)':'var(--border2)'}`,
+                              fontSize:'0.67rem', padding:'3px 8px'
+                            }}>
+                              {formatDayFull(date).split(' ').slice(0,2).join(' ')} {String(start).padStart(2,'0')}–{String(end+1).padStart(2,'0')}
+                            </span>
+                          );
+                        })
+                      )}
+                      {grouped.length>12&&<span style={{fontSize:'0.65rem',color:C.muted}}>+{grouped.length-12} till</span>}
+                    </div>
+                  )}
                 </div>
               );
             })}
